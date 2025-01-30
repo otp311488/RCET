@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "136875193131",
+    "project_id": "rcetshuttleservice",
+    "storage_bucket": "rcetshuttleservice.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:136875193131:android:014b0f901a0f02ceb24b6e",
+        "android_client_info": {
+          "package_name": "com.example.gef"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPWqZkaQGvsjYFsmJ9_fXNF-v3X3n9Xo4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:136875193131:android:4eb9e9152174dde9b24b6e",
+        "android_client_info": {
+          "package_name": "com.example.rcetshuttleservice"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPWqZkaQGvsjYFsmJ9_fXNF-v3X3n9Xo4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
