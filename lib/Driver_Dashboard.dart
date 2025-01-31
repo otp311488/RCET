@@ -128,7 +128,8 @@ class _DriverLocationMarkerState extends State<DriverLocationMarker> {
     if (distanceToDestination < 50) { // Threshold for "reaching" destination
       status = "Arrived";
       hasReachedDestination = true;
-      stopLocationSharing();
+      
+      
     } else {
       status = currentPosition!.latitude < finalDestination.latitude
           ? "Arriving"

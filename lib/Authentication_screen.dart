@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Import SharedPreferences
+import 'package:rcet_shuttle_bus/login_screen.dart';
 
 class AuthenticationScreen extends StatefulWidget {
   final String name;
@@ -34,7 +34,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
     _registerAndSendVerificationEmail();
   }
 
-  void _registerAndSendVerificationEmail() async {
+void _registerAndSendVerificationEmail() async {
     setState(() => _isLoading = true);
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
@@ -61,50 +61,47 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
       setState(() => _isLoading = false);
     }
   }
+ void _verifyAndStoreUser() async {
+  setState(() => _isLoading = true);
+  try {
+    User? user = _auth.currentUser;
+    await user?.reload();
 
-  void _verifyAndStoreUser() async {
-    setState(() => _isLoading = true);
-    try {
-      User? user = _auth.currentUser;
-      await user?.reload();
+    if (user != null && user.emailVerified) {
+      await _firestore.collection('users').doc(user.uid).set({
+        'name': widget.name,
+        'email': widget.email,
+        'role': widget.role,
+      });
 
-      if (user != null && user.emailVerified) {
-        await _firestore.collection('users').doc(user.uid).set({
-          'name': widget.name,
-          'email': widget.email,
-          'role': widget.role,
-        });
-
-        // Save user data to SharedPreferences
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        prefs.setString('name', widget.name);
-        prefs.setString('email', widget.email);
-        prefs.setString('role', widget.role);
-
-        _showSnackBar(
-          message: 'Verification successful!',
-          icon: Icons.check_circle,
-          color: Colors.green,
-        );
-
-        Navigator.popUntil(context, (route) => route.isFirst);
-      } else {
-        _showSnackBar(
-          message: 'Please verify your email before proceeding.',
-          icon: Icons.info,
-          color: Colors.red,
-        );
-      }
-    } catch (e) {
       _showSnackBar(
-        message: 'Error: ${e.toString()}',
-        icon: Icons.error,
+        message: 'Verification successful!',
+        icon: Icons.check_circle,
+        color: Colors.green,
+      );
+
+      // Navigate to login screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+    } else {
+      _showSnackBar(
+        message: 'Please verify your email before proceeding.',
+        icon: Icons.info,
         color: Colors.red,
       );
-    } finally {
-      setState(() => _isLoading = false);
     }
+  } catch (e) {
+    _showSnackBar(
+      message: 'Error: ${e.toString()}',
+      icon: Icons.error,
+      color: Colors.red,
+    );
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
 
   void _showSnackBar({
     required String message,
@@ -141,28 +138,21 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Add a picture at the top
               Image.asset(
-                'assets/d645ddd9-e1de-4f92-9190-d61b9115d680.jpeg', // Replace with your image path
+                'assets/d645ddd9-e1de-4f92-9190-d61b9115d680.jpeg',
                 height: 220,
               ),
               const SizedBox(height: 20),
-
-              // Title
               const Text(
                 "Verify Your Email",
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
-
-              // Subtitle
               const Text(
                 "A verification email has been sent to:",
                 style: TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 5),
-
-              // User email
               Text(
                 widget.email,
                 style: const TextStyle(
@@ -171,8 +161,6 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Verify and Continue Button
               ElevatedButton(
                 onPressed: _verifyAndStoreUser,
                 style: ElevatedButton.styleFrom(

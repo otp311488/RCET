@@ -36,10 +36,10 @@ dev_dependencies:
 flutter_icons:
   android: true   # Generate Android icons
   ios: true       # Generate iOS icons
-  image_path: "assets/13b44f6f-7915-4893-bb3e-99188a4703b6.jpeg"
+  image_path: "assets/iiccoonn.jpeg"
   min_sdk_android: 21
   adaptive_icon_background: "#ffffff"
-  adaptive_icon_foreground: "assets/13b44f6f-7915-4893-bb3e-99188a4703b6.jpeg"
+  adaptive_icon_foreground: "assets/iiccoonn.jpeg"
 
 flutter:
   uses-material-design: true
