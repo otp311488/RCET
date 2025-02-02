@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -50,139 +49,112 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     return deviceId;
   }
 
-  Future<void> _saveToPreferences() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String deviceId = await _getDeviceId();
 
-    await prefs.setString('name', _nameController.text.trim());
-    await prefs.setString('email', _emailController.text.trim());
-    await prefs.setString('password', _passwordController.text.trim());
-    await prefs.setString('role', _role);
-    await prefs.setString('deviceId', deviceId);
-  }
-
- 
     
 
 Future<void> _register() async {
-  setState(() {
-    _nameError = _nameController.text.trim().length < 3
-        ? 'Name must be at least 3 characters'
-        : null;
-    _emailError = !_emailController.text.contains('@') || 
-                  !_emailController.text.contains('gmail') || 
-                  !_emailController.text.contains('.com')
-        ? 'Enter a valid email'
-        : null;
-    _passwordError = _passwordController.text.length < 8
-        ? 'Password must be at least 8 characters'
-        : null;
-  });
+    setState(() {
+      _nameError = _nameController.text.trim().length < 3
+          ? 'Name must be at least 3 characters'
+          : null;
+      _emailError = !_emailController.text.contains('@') || !_emailController.text.contains('.com')|| !_emailController.text.contains('gmail')
+          ? 'Enter a valid email'
+          : null;
+      _passwordError = _passwordController.text.length < 8
+          ? 'Password must be at least 8 characters'
+          : null;
+    });
 
-  if (_nameError != null || _emailError != null || _passwordError != null) {
-    return;
-  }
-
-  try {
-    // Check if the email is already registered in Firebase Auth
-    final signInMethods = await FirebaseAuth.instance.fetchSignInMethodsForEmail(_emailController.text.trim());
-
-    if (signInMethods.isNotEmpty) {
-      setState(() {
-        _emailError = 'Email is already registered';
-      });
-      return;
+    if (_nameError != null || _emailError != null || _passwordError != null) {
+      return; // Don't proceed if there are validation errors
     }
 
-    // Check if email is already registered in Firestore
-    final existingUser = await FirebaseFirestore.instance
-        .collection('users')
-        .where('email', isEqualTo: _emailController.text.trim())
-        .get();
-
-    if (existingUser.docs.isNotEmpty) {
-      setState(() {
-        _emailError = 'Email is already registered';
-      });
-      return;
-    }
-
-  } catch (e) {
-    showCustomSnackBar(
-      context,
-      'Error checking email: ${e.toString()}',
-      Icons.error,
-      Colors.red,
-    );
-    return;
-  }
-
-  if (_role == 'driver') {
+    // Check if email already exists
     try {
-      final driverCountSnapshot = await FirebaseFirestore.instance
+      final existingUser = await FirebaseFirestore.instance
           .collection('users')
-          .where('role', isEqualTo: 'driver')
+          .where('email', isEqualTo: _emailController.text.trim())
           .get();
 
-      if (driverCountSnapshot.docs.length >= 8) {
-        showCustomSnackBar(
-          context,
-          'Registration failed: Maximum of 8 drivers are allowed.',
-          Icons.error,
-          Colors.red,
-        );
+      if (existingUser.docs.isNotEmpty) {
+        setState(() {
+          _emailError = 'Email is already registered';
+        });
         return;
       }
     } catch (e) {
       showCustomSnackBar(
         context,
-        'Error checking driver limit: ${e.toString()}',
+        'Error checking email: ${e.toString()}',
         Icons.error,
         Colors.red,
       );
       return;
     }
-  }
 
-  try {
-    await _saveToPreferences();
+    // Check driver limit if role is "driver"
+    if (_role == 'driver') {
+      try {
+        final driverCountSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('role', isEqualTo: 'driver')
+            .get();
 
-    // Register the user in Firebase Authentication
-    UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-      email: _emailController.text.trim(),
-      password: _passwordController.text.trim(),
-    );
+        if (driverCountSnapshot.docs.length >= 8) {
+          showCustomSnackBar(
+            context,
+            'Registration failed: Maximum of 8 drivers are allowed.',
+            Icons.error,
+            Colors.red,
+          );
+          return;
+        }
+      } catch (e) {
+        showCustomSnackBar(
+          context,
+          'Error checking driver limit: ${e.toString()}',
+          Icons.error,
+          Colors.red,
+        );
+        return;
+      }
+    }
 
-    await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
-      'name': _nameController.text.trim(),
-      'email': _emailController.text.trim(),
-      'role': _role,
-      'deviceId': await _getDeviceId(),
-      'uid': userCredential.user!.uid,
-    });
+    // Save user to Firestore
+    try {
+      
 
-    showCustomSnackBar(context, 'Registration successful.', Icons.check_circle, Colors.green);
+      await FirebaseFirestore.instance.collection('users').add({
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        
+        'role': _role,
+        'deviceId': await _getDeviceId(),
+      });
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AuthenticationScreen(
-          name: _nameController.text.trim(),
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-          role: _role,
+      
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AuthenticationScreen(
+            name: _nameController.text.trim(),
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+            role: _role,
+          ),
         ),
-      ),
-    );
-  } catch (e) {
-    showCustomSnackBar(
-      context,
-      'Failed to register user: ${e.toString()}',
-      Icons.error,
-      Colors.red,
-    );
+      );
+    } catch (e) {
+      showCustomSnackBar(
+        context,
+        'Failed to register user: ${e.toString()}',
+        Icons.error,
+        Colors.red,
+      );
+    }
   }
-}
+
 
 @override
 Widget build(BuildContext context) {
@@ -194,23 +166,7 @@ Widget build(BuildContext context) {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Align(
-              alignment: Alignment.topLeft,  // Aligning the text to the top-left corner
-              child: GestureDetector(
-                onTap: () {
-                  // Pop back to the previous screen (Homepage in your case)
-                  Navigator.pop(context);
-                },
-                child: const Text(
-                  "Return to Homepage",
-                  style: TextStyle(
-                    color: Color(0xFF1A237E), // Blue color
-                    fontWeight: FontWeight.bold, // Bold text
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ),
+           
             const SizedBox(height: 20),
             Image.asset(
               'assets/073d88d7-bda9-4454-81a1-a8fc5db5c95e.jpeg',
@@ -371,4 +327,4 @@ Widget build(BuildContext context) {
       ),
     );
   }
-}
+}  

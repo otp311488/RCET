@@ -75,7 +75,7 @@ void _registerAndSendVerificationEmail() async {
       });
 
       _showSnackBar(
-        message: 'Verification successful!',
+        message: 'Registration successful!',
         icon: Icons.check_circle,
         color: Colors.green,
       );
@@ -177,5 +177,4 @@ void _registerAndSendVerificationEmail() async {
         ),
       ),
     );
-  }
-}
+  }}
