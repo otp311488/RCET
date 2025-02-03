@@ -127,9 +127,7 @@ void _registerAndSendVerificationEmail() async {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-      ),
+     
       body: Center(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())

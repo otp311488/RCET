@@ -56,6 +56,7 @@ class _DriverLocationMarkerState extends State<DriverLocationMarker> {
     _loadCustomMarker();
     initializeService();
     _getSharingStatusFromFirebase();
+messageController.clear();
 
   }
 
@@ -225,7 +226,7 @@ class _DriverLocationMarkerState extends State<DriverLocationMarker> {
           'isSharing': false, // Set sharing status to false
         }, SetOptions(merge: true)); // Merge to avoid overwriting other data
 
-        print("Location sharing stopped for $selectedBus.");
+      
       } catch (e) {
         print("Error updating location sharing status: $e");
       }
@@ -235,7 +236,7 @@ class _DriverLocationMarkerState extends State<DriverLocationMarker> {
     setState(() {
       currentPosition = null; // Reset the local marker
     });
-    _showSnackBar(message: 'Location sharing stopped for $selectedBus.',color: Colors.red,icon: Icons.location_off_rounded);
+
   }
 
   void stopBackgroundService() {
@@ -423,96 +424,117 @@ Widget build(BuildContext context) {
                   ),
                 ),
               ),
-          IconButton(
-  icon: const Icon(Icons.directions_bus, color: Colors.black),
-  onPressed: () {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            children: [
-              const Text(
-                'Select a Route',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: buses.length,
-                  itemBuilder: (context, i) {
-                    return ListTile(
-                      leading: buses[i].icon,
-                      title: Text(buses[i].name),
-                      onTap: () {
-                        setState(() {
-                          selectedBus = buses[i].name;
-                        });
-                        Navigator.pop(context);
-                      },
+            IconButton(
+              icon: const Icon(Icons.directions_bus, color: Colors.black),
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  builder: (context) {
+                    return Container(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Select a Route',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: buses.length,
+                              itemBuilder: (context, i) {
+                                bool isDisabled = selectedBus != null && selectedBus != buses[i].name;
+
+                                return ListTile(
+                                  leading: buses[i].icon,
+                                  title: Text(
+                                    buses[i].name,
+                                    style: TextStyle(
+                                      color: isDisabled ? Colors.grey : Colors.black, // Grey out disabled buses
+                                      fontWeight: selectedBus == buses[i].name ? FontWeight.bold : FontWeight.normal,
+                                    ),
+                                  ),
+                                  enabled: !isDisabled, // Disable tap on other buses
+                                  onTap: isDisabled
+                                      ? null
+                                      : () {
+                                          setState(() {
+                                            selectedBus = buses[i].name;
+                                          });
+                                          Navigator.pop(context);
+                                        },
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     );
                   },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  },
-)
-
+                );
+              },
+            ),
           ],
         ),
       ],
     ),
-    drawer: Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: <Widget>[
-          DrawerHeader(
-            decoration: const BoxDecoration(color: Color(0xFF1A237E)),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Welcome!',
-                  style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Driver Dashboard',
-                  style: TextStyle(color: Colors.white70, fontSize: 18),
-                ),
-              ],
+drawer: Drawer(
+  child: ListView(
+    padding: EdgeInsets.zero,
+    children: <Widget>[
+      DrawerHeader(
+        decoration: const BoxDecoration(color: Color(0xFF1A237E)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text(
+              'Welcome!',
+              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
             ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Signout'),
-            onTap: () async {
-              try {
-                // Sign out the user from Firebase Authentication
-                await FirebaseAuth.instance.signOut();
-
-                // Navigate to the WelcomeScreen and clear the navigation stack
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => LoginScreen(),
-                  ),
-                  (route) => false, // Remove all previous routes
-                );
-              } catch (e) {
-                // Handle errors, if any
-                print('Error signing out: $e');
-              }
-            },
-          ),
-        ],
+            SizedBox(height: 8),
+            Text(
+              'Driver Dashboard',
+              style: TextStyle(color: Colors.white70, fontSize: 18),
+            ),
+          ],
+        ),
       ),
-    ),
+      ListTile(
+  leading: const Icon(Icons.refresh, color: Colors.blue),
+  title: const Text('Select Another Bus'),
+  onTap: () {
+    if (isSharing) {
+      _handleShareLocationButtonClick(); // Stop sharing if active
+    }
+    setState(() {
+      selectedBus = null; // Reset the selected bus
+    });
+    Navigator.pop(context); // Close the drawer
+  },
+),
+
+      ListTile(
+        leading: const Icon(Icons.logout),
+        title: const Text('Signout'),
+        onTap: () async {
+          try {
+            await FirebaseAuth.instance.signOut();
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => LoginScreen(),
+              ),
+              (route) => false, // Remove all previous routes
+            );
+          } catch (e) {
+            print('Error signing out: $e');
+          }
+        },
+      ),
+    ],
+  ),
+),
+
     body: Stack(
       children: [
         // Google Map
@@ -571,56 +593,65 @@ Widget build(BuildContext context) {
 
                   // Share Message Button
                   ElevatedButton(
-                    onPressed: () {
-                      if (selectedBus == null) {
-                        // Show error Snackbar if no bus is selected
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("Please select a bus first."),
-                            backgroundColor: Colors.red,
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      } else {
-                        // Proceed with sharing message if bus is selected
-                        setState(() {
-                          message = messageController.text;
-                        });
+                   onPressed: () {
+  if (selectedBus == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Please select a bus first."),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  } else if (messageController.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Please enter a message before sending."),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  } else {
+    setState(() {
+      message = messageController.text;
+    });
 
-                        // Snackbar for message broadcast
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                Icon(Icons.message_rounded, color: Colors.white),
-                                SizedBox(width: 8),
-                                Text(
-                                  "Message Broadcast: $message",
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                            backgroundColor: Colors.green,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                            margin: EdgeInsets.all(25),
-                          ),
-                        );
-                      }
-                    },
+    // Clear the message field after sending
+    messageController.clear();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.message_rounded, color: Colors.white),
+            SizedBox(width: 8),
+            Text(
+              "Message Broadcast: $message",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.all(25),
+      ),
+    );
+  }
+},
+
                     style: ElevatedButton.styleFrom(
                       minimumSize: Size(150, 40),
-                      backgroundColor: Color(0xFF1A237E), // Grey if no bus is selected
+                      backgroundColor: Color(0xFF1A237E),
                     ),
                     child: Text(
-                      "Share Message ",
+                      "Share Message",
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
                   SizedBox(height: 10),
-                  
+
                   // Message TextField
                   TextField(
                     controller: messageController,
@@ -630,11 +661,6 @@ Widget build(BuildContext context) {
                         borderRadius: BorderRadius.circular(25),
                       ),
                     ),
-                    onChanged: (value) {
-                      setState(() {
-                        message = value;
-                      });
-                    },
                   ),
                 ],
               ),
