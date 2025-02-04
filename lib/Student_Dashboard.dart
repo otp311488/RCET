@@ -185,10 +185,11 @@ import 'package:rcet_shuttle_bus/login_screen.dart';
                 statusbus = data['status'] ?? 'No message available';
 
                 // Fetch OSRM route and draw polyline
-                fetchOsrmRoute(driverPosition);
+                fetchOsrmRoute(driverPosition, data['status'] ?? 'Unknown');
 
                 // Calculate ETA based on distance and current position
-                calculateETA(driverPosition);
+                calculateETA(driverPosition, data['status'] ?? 'Unknown');
+
               }
             }
           }
@@ -198,97 +199,106 @@ import 'package:rcet_shuttle_bus/login_screen.dart';
     }
 
 
+Future<void> calculateETA(LatLng driverPosition, String status) async {
+  LatLng finalDestination = getFinalDestination(status);
 
-    // Method for calculating ETA
-    Future<void> calculateETA(LatLng driverPosition) async {
-      final String url =
-          'http://router.project-osrm.org/route/v1/driving/${driverPosition.longitude},${driverPosition.latitude};${uetRcetLocation.longitude},${uetRcetLocation.latitude}?overview=full&geometries=polyline';
+  final String url =
+      'http://router.project-osrm.org/route/v1/driving/${driverPosition.longitude},${driverPosition.latitude};${finalDestination.longitude},${finalDestination.latitude}?overview=false';
 
-      try {
-        final response = await http.get(Uri.parse(url));
+  try {
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final route = data['routes'][0];
+      final durationSeconds = route['duration']; // Duration in seconds
+      final etaMinutes = (durationSeconds / 60).toStringAsFixed(0);
 
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final route = data['routes'][0];
-          final duration = route['duration']; // Duration in seconds
-          final distance = route['distance']; // Distance in meters
-
-          // Assuming the average speed of the bus is 30 km/h (adjust as needed)
-          final speed = 60 * 1000 / 3600; // Convert speed to meters per second
-          final estimatedTime = distance / speed; // in seconds
-
-          final etaMinutes = (estimatedTime / 60).toStringAsFixed(0);
-
-          setState(() {
-            busETA = "$etaMinutes minutes"; // Update the ETA message
-          });
-        }
-      } catch (e) {
-        print("Error calculating ETA: $e");
-      }
+      busETA = "$etaMinutes minutes"; // Use OSRM-calculated duration
     }
+  } catch (e) {
+    print("Error calculating ETA: $e");
+  }
+}
 
-    // Fetch OSRM route for polyline
-    Future<void> fetchOsrmRoute(LatLng driverPosition) async {
-      final String url =
-          'http://router.project-osrm.org/route/v1/driving/${driverPosition.longitude},${driverPosition.latitude};${uetRcetLocation.longitude},${uetRcetLocation.latitude}?overview=full&geometries=polyline';
+LatLng getFinalDestination(String status) {
+  if (status == "Arriving") return uetRcetLocation;
 
-      try {
-        final response = await http.get(Uri.parse(url));
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final route = data['routes'][0];
-          final encodedPolyline = route['geometry'];
-          final List<LatLng> polylinePoints = decodePolyline(encodedPolyline);
+  switch (selectedBus) {
+    case "Pindi Bypass":
+      return LatLng(32.204598, 74.175831);
+    case "Sheikhupura Mor":
+      return LatLng(32.147764, 74.191447);
+    case "Chanda Qila":
+      return LatLng(32.093955, 74.200944);
+    case "KSK":
+      return LatLng(31.691408, 74.248625);
+    default:
+      return uetRcetLocation;
+  }
+}
 
-          setState(() {
-            _polylines.add(Polyline(
-              polylineId: PolylineId("bus_route"),
-              points: polylinePoints,
-              color: Colors.blue,
-              width: 5,
-            ));
-          });
-        }
-      } catch (e) {
-        print("Error fetching OSRM route: $e");
-      }
+void fetchOsrmRoute(LatLng driverPosition, String status) async {
+  LatLng finalDestination = getFinalDestination(status);
+
+  final String url =
+      'http://router.project-osrm.org/route/v1/driving/${driverPosition.longitude},${driverPosition.latitude};${finalDestination.longitude},${finalDestination.latitude}?overview=full&geometries=polyline';
+
+  try {
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final route = data['routes'][0];
+      final encodedPolyline = route['geometry'];
+      final List<LatLng> polylinePoints = decodePolyline(encodedPolyline);
+
+      setState(() {
+        _polylines.clear(); // Clear previous routes
+        _polylines.add(Polyline(
+          polylineId: const PolylineId("bus_route"),
+          points: polylinePoints,
+          color: Colors.blue,
+          width: 5,
+        ));
+      });
     }
+  } catch (e) {
+    print("Error fetching OSRM route: $e");
+  }
+}
 
-    // Decode polyline for OSRM
-    List<LatLng> decodePolyline(String encodedPolyline) {
-      List<LatLng> polylinePoints = [];
-      int index = 0;
-      int len = encodedPolyline.length;
-      int lat = 0;
-      int lng = 0;
 
-      while (index < len) {
-        int shift = 0;
-        int result = 0;
-        int byte;
-        do {
-          byte = encodedPolyline.codeUnitAt(index++) - 63;
-          result |= (byte & 0x1f) << shift;
-          shift += 5;
-        } while (byte >= 0x20);
-        int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-        lat += dlat;
+List<LatLng> decodePolyline(String encoded) {
+  List<LatLng> points = [];
+  int index = 0, len = encoded.length;
+  int lat = 0, lng = 0;
 
-        shift = 0;
-        result = 0;
-        do {
-          byte = encodedPolyline.codeUnitAt(index++) - 63;
-          result |= (byte & 0x1f) << shift;
-          shift += 5;
-        } while (byte >= 0x20);
-        int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-        lng += dlng;
+  while (index < len) {
+    int shift = 0, result = 0;
+    int byte;
+    do {
+      byte = encoded.codeUnitAt(index++) - 63;
+      result |= (byte & 0x1F) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    int deltaLat = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+    lat += deltaLat;
 
-        polylinePoints.add(LatLng(lat / 1e5, lng / 1e5));
-      }
-      return polylinePoints;
-    }
+    shift = 0;
+    result = 0;
+    do {
+      byte = encoded.codeUnitAt(index++) - 63;
+      result |= (byte & 0x1F) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    int deltaLng = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+    lng += deltaLng;
+
+    points.add(LatLng(lat / 1E5, lng / 1E5));
+  }
+
+  return points;
+}
+
     void _showBottomSheet() {
       showModalBottomSheet(
         context: context,

@@ -116,32 +116,42 @@ messageController.clear();
       print("Error fetching location: $e");
     }
   }
-  void _updateStatusAndNextStop() {
-    if (currentPosition == null) return;
+ void _updateStatusAndNextStop() async {
+  if (currentPosition == null) return;
 
-    double distanceToDestination = Geolocator.distanceBetween(
-      currentPosition!.latitude,
-      currentPosition!.longitude,
-      finalDestination.latitude,
-      finalDestination.longitude,
-    );
+  double distanceToDestination = Geolocator.distanceBetween(
+    currentPosition!.latitude,
+    currentPosition!.longitude,
+    finalDestination.latitude,
+    finalDestination.longitude,
+  );
 
-    if (distanceToDestination < 50) { // Threshold for "reaching" destination
-      status = "Arrived";
-      hasReachedDestination = true;
-      
-      
-    } else {
-      status = currentPosition!.latitude < finalDestination.latitude
-          ? "Arriving"
-          : "Departing";
-      hasReachedDestination = false;
+  if (distanceToDestination < 20) { // Threshold for "reaching" destination
+    status = "Arrived";
+    hasReachedDestination = true;
+
+    // Immediately update Firebase when the bus arrives
+    if (selectedBus != null) {
+      await FirebaseFirestore.instance
+          .collection('bus_locations')
+          .doc(selectedBus)
+          .set({
+        'status': "Arrived",
+        'timestamp': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      print("Status updated to 'Arrived' in Firebase for $selectedBus.");
     }
-
-    setState(() {
-      nextStop = "Unknown";
-    });
+  } else {
+    status = currentPosition!.latitude < finalDestination.latitude
+        ? "Arriving"
+        : "Departing";
+    hasReachedDestination = false;
   }
+
+  setState(() {
+    nextStop = "Unknown";
+  });
+}
 
 
   Future<void> _updateFirebaseLocation({bool updateMessage = false}) async {

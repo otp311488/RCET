@@ -37,12 +37,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen> {
 void _registerAndSendVerificationEmail() async {
     setState(() => _isLoading = true);
     try {
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: widget.email,
-        password: widget.password,
-      );
-
-      User? user = userCredential.user;
+      User? user = _auth.currentUser; // Get existing user instead of re-creating
       if (user != null && !user.emailVerified) {
         await user.sendEmailVerification();
         _showSnackBar(
@@ -61,6 +56,7 @@ void _registerAndSendVerificationEmail() async {
       setState(() => _isLoading = false);
     }
   }
+
  void _verifyAndStoreUser() async {
   setState(() => _isLoading = true);
   try {
